@@ -6,18 +6,24 @@ const BookSearch = () => {
   const [query, setQuery] = useState('');
   const [books, setBooks] = useState([]);
   const [page, setPage] = useState(1);
+  const [searchTriggered, setSearchTriggered] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
-  const [library, setLibrary] = useState([]); 
+  const [library, setLibrary] = useState([]);
   const apiKey = process.env.REACT_APP_GOOGLE_BOOKS_API_KEY;
 
-  //  Search for books
   const searchBooks = async (query, page) => {
+    if (!query.trim()) {
+      console.warn('Search query is empty.');
+      return;
+    }
+
     try {
       const startIndex = (page - 1) * 10;
       const response = await axios.get(
         `https://www.googleapis.com/books/v1/volumes?q=${query}&startIndex=${startIndex}&maxResults=10&key=${apiKey}`
       );
+
       setBooks(response.data.items || []);
     } catch (error) {
       console.error('Error fetching books:', error);
@@ -26,15 +32,16 @@ const BookSearch = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
+    setSearchTriggered(true);
     searchBooks(query, page);
   };
 
   const handlePageChange = (newPage) => {
+    if (newPage < 1) return;
     setPage(newPage);
     searchBooks(query, newPage);
   };
 
-  // Manage Library
   const addToLibrary = (book) => {
     if (!library.some((b) => b.id === book.id)) {
       setLibrary([...library, book]);
@@ -45,7 +52,6 @@ const BookSearch = () => {
     setLibrary(library.filter((book) => book.id !== bookId));
   };
 
-  // Image Upload
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -56,8 +62,6 @@ const BookSearch = () => {
 
   return (
     <div className="container">
-      
-      {/*  Search  */}
       <form onSubmit={handleSearch}>
         <input
           type="text"
@@ -68,49 +72,59 @@ const BookSearch = () => {
         <button type="submit">Search</button>
       </form>
 
-      {/* Results Container */}
-      <div className="results-container">
-        {books.length > 0 ? (
-          <table className="result-table">
-            <thead>
-              <tr>
-                <th>Book Image</th>
-                <th>Title</th>
-                <th>Authors</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {books.map((book) => (
-                <tr key={book.id}>
-                  <td>
-                    {book.volumeInfo.imageLinks ? (
-                      <img
-                        src={book.volumeInfo.imageLinks.thumbnail}
-                        alt={book.volumeInfo.title}
-                        className="book-cover"
-                      />
-                    ) : (
-                      <p>No Image Available</p>
-                    )}
-                  </td>
-                  <td>{book.volumeInfo.title || "No Title"}</td>
-                  <td>{book.volumeInfo.authors ? book.volumeInfo.authors.join(", ") : "Unknown Author"}</td>
-                  <td>
-                    <button onClick={() => addToLibrary(book)}>Add to Library</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No books found.</p>
-        )}
-      </div>
+      {searchTriggered && (
+        <div className="results-container">
+          {books.length > 0 ? (
+            <>
+              <table className="result-table">
+                <thead>
+                  <tr>
+                    <th>Book Image</th>
+                    <th>Title</th>
+                    <th>Authors</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {books.map((book) => (
+                    <tr key={book.id}>
+                      <td>
+                        {book.volumeInfo.imageLinks ? (
+                          <img
+                            src={book.volumeInfo.imageLinks.thumbnail}
+                            alt={book.volumeInfo.title}
+                            className="book-cover"
+                          />
+                        ) : (
+                          <p>No Image Available</p>
+                        )}
+                      </td>
+                      <td>{book.volumeInfo.title || 'No Title'}</td>
+                      <td>{book.volumeInfo.authors ? book.volumeInfo.authors.join(', ') : 'Unknown Author'}</td>
+                      <td>
+                        <button onClick={() => addToLibrary(book)}>Add to Library</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-      {/* My Book Library  */}
+              <div className="pagination">
+                <button onClick={() => handlePageChange(page - 1)} disabled={page === 1}>
+                  Previous
+                </button>
+                <span>Page {page}</span>
+                <button onClick={() => handlePageChange(page + 1)}>Next</button>
+              </div>
+            </>
+          ) : (
+            <p>No books found.</p>
+          )}
+        </div>
+      )}
+
       <h2>My Book Library</h2>
-      {library.length > 0 ? (
+      {library.length > 0 && (
         <table className="library-table">
           <thead>
             <tr>
@@ -134,8 +148,8 @@ const BookSearch = () => {
                     <p>No Image Available</p>
                   )}
                 </td>
-                <td>{book.volumeInfo.title || "No Title"}</td>
-                <td>{book.volumeInfo.authors ? book.volumeInfo.authors.join(", ") : "Unknown Author"}</td>
+                <td>{book.volumeInfo.title || 'No Title'}</td>
+                <td>{book.volumeInfo.authors ? book.volumeInfo.authors.join(', ') : 'Unknown Author'}</td>
                 <td>
                   <button onClick={() => removeFromLibrary(book.id)}>Remove from Library</button>
                 </td>
@@ -143,11 +157,8 @@ const BookSearch = () => {
             ))}
           </tbody>
         </table>
-      ) : (
-        <p>No books added yet.</p>
       )}
 
-      {/* Image Upload */}
       <h2>Image Upload</h2>
       <div className="button-container">
         <input type="file" onChange={handleFileUpload} className="browse-button" />
